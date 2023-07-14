@@ -1,0 +1,13 @@
+F:\Programming\StateViewer\StateViewer\StateViewer\bin\Debug\StateViewer.exe.config
+F:\Programming\StateViewer\StateViewer\StateViewer\bin\Debug\StateViewer.exe
+F:\Programming\StateViewer\StateViewer\StateViewer\bin\Debug\StateViewer.pdb
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\MainWindow.g.cs
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\App.g.cs
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer_MarkupCompile.cache
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\MainWindow.baml
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.g.resources
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.Properties.Resources.resources
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.csproj.GenerateResource.cache
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.csproj.CoreCompileInputs.cache
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.exe
+F:\Programming\StateViewer\StateViewer\StateViewer\obj\Debug\StateViewer.pdb
