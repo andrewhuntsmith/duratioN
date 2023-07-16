@@ -24,3 +24,16 @@ D:\Programming\Race Mode Timer\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.Gene
 D:\Programming\Race Mode Timer\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.CoreCompileInputs.cache
 D:\Programming\Race Mode Timer\RaceModeTimer\obj\Debug\RaceModeTimer.exe
 D:\Programming\Race Mode Timer\RaceModeTimer\obj\Debug\RaceModeTimer.pdb
+D:\Programming\duratioN\RaceModeTimer\bin\Debug\RaceModeTimer.exe.config
+D:\Programming\duratioN\RaceModeTimer\bin\Debug\RaceModeTimer.exe
+D:\Programming\duratioN\RaceModeTimer\bin\Debug\RaceModeTimer.pdb
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\MainWindow.baml
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\MainWindow.g.cs
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\App.g.cs
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer_MarkupCompile.cache
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.g.resources
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.Properties.Resources.resources
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.GenerateResource.cache
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.CoreCompileInputs.cache
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.exe
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.pdb
