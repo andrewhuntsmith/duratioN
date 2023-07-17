@@ -40,7 +40,7 @@ namespace RaceModeTimer
             while (Loop)
             {
                 MS.UpdateThread();
-                if (MS.ValuesChanged)
+                if (MS.EpisodeTimeValuesChanged || MS.PlayerActivityChanged)
                     Dispatcher.BeginInvoke(new Action(UpdateTimeDisplay));
             }
         }
@@ -48,12 +48,34 @@ namespace RaceModeTimer
         void UpdateTimeDisplay()
         {
             PlayerTimes.Items.Clear();
-            PlayerTimes.Items.Add(P1Name + ": " + P1DisplayTime);
-            PlayerTimes.Items.Add(P2Name + ": " + P2DisplayTime);
-            PlayerTimes.Items.Add(P3Name + ": " + P3DisplayTime);
-            PlayerTimes.Items.Add(P4Name + ": " + P4DisplayTime);
-            Log.UpdateNamesFile(new List<string> { P1Name, P2Name, P3Name, P4Name });
-            Log.UpdateScoresFile(new List<string> { P1DisplayTime, P2DisplayTime, P3DisplayTime, P4DisplayTime });
+            var names = new List<string>();
+            var scores = new List<string>();
+            if (MS.P1Active)
+            {
+                PlayerTimes.Items.Add(P1Name + ": " + P1DisplayTime);
+                names.Add(P1Name);
+                scores.Add(P1DisplayTime);
+            }
+            if (MS.P2Active)
+            {
+                PlayerTimes.Items.Add(P2Name + ": " + P2DisplayTime);
+                names.Add(P2Name);
+                scores.Add(P2DisplayTime);
+            }
+            if (MS.P3Active)
+            {
+                PlayerTimes.Items.Add(P3Name + ": " + P3DisplayTime);
+                names.Add(P3Name);
+                scores.Add(P3DisplayTime);
+            }
+            if (MS.P4Active)
+            {
+                PlayerTimes.Items.Add(P4Name + ": " + P4DisplayTime);
+                names.Add(P4Name);
+                scores.Add(P4DisplayTime);
+            }
+            Log.UpdateNamesFile(names);
+            Log.UpdateScoresFile(scores);
         }
 
         void ResetTimes(object sender, RoutedEventArgs e)

@@ -9,12 +9,17 @@ namespace RaceModeTimer
     {
         // offsets from npp.dll to find player timers
         public const int DllOffset = 0x5E2628;
-        public const int P1Offset = 0x7D00;
-        public const int P2Offset = P1Offset + 0x8;
-        public const int P3Offset = P2Offset + 0x8;
-        public const int P4Offset = P3Offset + 0x8;
+        public const int P1EpisodeTimeOffset = 0x7D00;
+        public const int P2EpisodeTimeOffset = P1EpisodeTimeOffset + 0x8;
+        public const int P3EpisodeTimeOffset = P2EpisodeTimeOffset + 0x8;
+        public const int P4EpisodeTimeOffset = P3EpisodeTimeOffset + 0x8;
 
-        public static int FinalMemoryOffset;
+        public const int P1ActiveOffset = 0x7BE8;
+        public const int P2ActiveOffset = P1ActiveOffset + 0x4;
+        public const int P3ActiveOffset = P2ActiveOffset + 0x4;
+        public const int P4ActiveOffset = P3ActiveOffset + 0x4;
+
+        public static int StatBlockOffset;
 
         // variables that store memory access information
         public static Process NppProcess;
@@ -26,8 +31,14 @@ namespace RaceModeTimer
         const int PROCESS_VM_READ = 0x0010;
 
         public bool StartNewEpisode;
-        public bool ValuesChanged;
+        public bool EpisodeTimeValuesChanged;
+        public bool PlayerActivityChanged;
 
+        public bool P1Active;
+        public bool P2Active;
+        public bool P3Active;
+        public bool P4Active;
+       
         public double P1Time = 0;
         public double P2Time = 0;
         public double P3Time = 0;
@@ -74,11 +85,11 @@ namespace RaceModeTimer
 
             ReadProcessMemory((int)NppProcessHandle, (int)(NppdllBaseAddress + DllOffset), offsetPointer, offsetPointer.Length, ref bytesRead);
 
-            FinalMemoryOffset = BitConverter.ToInt32(offsetPointer, 0);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P1Offset), p1Buffer, p1Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P2Offset), p2Buffer, p2Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P3Offset), p3Buffer, p3Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P4Offset), p4Buffer, p4Buffer.Length, ref bytesRead);
+            StatBlockOffset = BitConverter.ToInt32(offsetPointer, 0);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1EpisodeTimeOffset), p1Buffer, p1Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P2EpisodeTimeOffset), p2Buffer, p2Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P3EpisodeTimeOffset), p3Buffer, p3Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P4EpisodeTimeOffset), p4Buffer, p4Buffer.Length, ref bytesRead);
 
             P1EpisodeTime = BitConverter.ToDouble(p1Buffer, 0);
             P2EpisodeTime = BitConverter.ToDouble(p2Buffer, 0);
@@ -139,16 +150,22 @@ namespace RaceModeTimer
 
         public void UpdateThread()
         {
+            UpdateEpisodeTime();
+            UpdatePlayerActivity();
+        }
+
+        void UpdateEpisodeTime()
+        {
             int bytesRead = 0;
             byte[] p1Buffer = new byte[8];
             byte[] p2Buffer = new byte[8];
             byte[] p3Buffer = new byte[8];
             byte[] p4Buffer = new byte[8];
 
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P1Offset), p1Buffer, p1Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P2Offset), p2Buffer, p2Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P3Offset), p3Buffer, p3Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(FinalMemoryOffset + P4Offset), p4Buffer, p4Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1EpisodeTimeOffset), p1Buffer, p1Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P2EpisodeTimeOffset), p2Buffer, p2Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P3EpisodeTimeOffset), p3Buffer, p3Buffer.Length, ref bytesRead);
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P4EpisodeTimeOffset), p4Buffer, p4Buffer.Length, ref bytesRead);
 
             P1EpisodeTimeNewFrame = BitConverter.ToDouble(p1Buffer, 0);
             P2EpisodeTimeNewFrame = BitConverter.ToDouble(p2Buffer, 0);
@@ -160,7 +177,7 @@ namespace RaceModeTimer
                             || P3EpisodeTimeNewFrame < P3EpisodeTime
                             || P4EpisodeTimeNewFrame < P4EpisodeTime;
 
-            ValuesChanged = P1EpisodeTimeNewFrame != P1EpisodeTime
+            EpisodeTimeValuesChanged = P1EpisodeTimeNewFrame != P1EpisodeTime
                             || P2EpisodeTimeNewFrame != P2EpisodeTime
                             || P3EpisodeTimeNewFrame != P3EpisodeTime
                             || P4EpisodeTimeNewFrame != P4EpisodeTime;
@@ -177,6 +194,25 @@ namespace RaceModeTimer
             P2EpisodeTime = P2EpisodeTimeNewFrame;
             P3EpisodeTime = P3EpisodeTimeNewFrame;
             P4EpisodeTime = P4EpisodeTimeNewFrame;
+        }
+
+        void UpdatePlayerActivity()
+        {
+            int bytesRead = 0;
+            byte[] activeBuffer = new byte[16];
+            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1ActiveOffset), activeBuffer, activeBuffer.Length, ref bytesRead);
+
+            var p1 = BitConverter.ToBoolean(activeBuffer, 0);
+            var p2 = BitConverter.ToBoolean(activeBuffer, 4);
+            var p3 = BitConverter.ToBoolean(activeBuffer, 8);
+            var p4 = BitConverter.ToBoolean(activeBuffer, 12);
+
+            PlayerActivityChanged = p1 != P1Active || p2 != P2Active || p3 != P3Active || p4 != P4Active;
+
+            P1Active = p1;
+            P2Active = p2;
+            P3Active = p3;
+            P4Active = p4;
         }
 
         public void ResetValues()
