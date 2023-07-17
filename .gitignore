@@ -2,3 +2,4 @@
 *.exe
 *.cache
 .vs/RaceModeTimer/v16/.suo
+.vs/RaceModeTimer/bin/*

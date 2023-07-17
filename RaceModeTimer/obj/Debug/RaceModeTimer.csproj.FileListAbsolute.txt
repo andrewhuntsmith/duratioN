@@ -37,3 +37,4 @@ D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.GenerateRes
 D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.CoreCompileInputs.cache
 D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.exe
 D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.pdb
+D:\Programming\duratioN\RaceModeTimer\obj\Debug\RaceModeTimer.csproj.AssemblyReference.cache
