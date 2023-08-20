@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -19,6 +20,18 @@ namespace RaceModeTimer
         public const int P3ActiveOffset = P2ActiveOffset + 0x4;
         public const int P4ActiveOffset = P3ActiveOffset + 0x4;
 
+        public const int P1FinishedOffset = 0x7DE0;
+        public const int P2FinishedOffset = P1FinishedOffset + 0x4;
+        public const int P3FinishedOffset = P2FinishedOffset + 0x4;
+        public const int P4FinishedOffset = P3FinishedOffset + 0x4;
+
+        public const int P1BonusOffset = 0x7E40;
+        public const int P2BonusOffset = P1BonusOffset + 0x8;
+        public const int P3BonusOffset = P2BonusOffset + 0x8;
+        public const int P4BonusOffset = P3BonusOffset + 0x8;
+
+        public const int EpisodeFrameCounterOffset = 0x7CC8;
+
         public static int StatBlockOffset;
 
         // variables that store memory access information
@@ -34,25 +47,32 @@ namespace RaceModeTimer
         public bool EpisodeTimeValuesChanged;
         public bool PlayerActivityChanged;
 
-        public bool P1Active;
-        public bool P2Active;
-        public bool P3Active;
-        public bool P4Active;
-       
+        public BoolAddressValue P1Active;
+        public BoolAddressValue P2Active;
+        public BoolAddressValue P3Active;
+        public BoolAddressValue P4Active;
+
+        public BoolAddressValue P1Finished;
+        public BoolAddressValue P2Finished;
+        public BoolAddressValue P3Finished;
+        public BoolAddressValue P4Finished;
+
         public double P1Time = 0;
         public double P2Time = 0;
         public double P3Time = 0;
         public double P4Time = 0;
 
-        public double P1EpisodeTime = 0;
-        public double P2EpisodeTime = 0;
-        public double P3EpisodeTime = 0;
-        public double P4EpisodeTime = 0;
+        public DoubleAddressValue P1EpisodeTime;
+        public DoubleAddressValue P2EpisodeTime;
+        public DoubleAddressValue P3EpisodeTime;
+        public DoubleAddressValue P4EpisodeTime;
 
-        public double P1EpisodeTimeNewFrame = 0;
-        public double P2EpisodeTimeNewFrame = 0;
-        public double P3EpisodeTimeNewFrame = 0;
-        public double P4EpisodeTimeNewFrame = 0;
+        public DoubleAddressValue P1BonusTime;
+        public DoubleAddressValue P2BonusTime;
+        public DoubleAddressValue P3BonusTime;
+        public DoubleAddressValue P4BonusTime;
+
+        public int CurrentFrame;
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -60,14 +80,15 @@ namespace RaceModeTimer
         [DllImport("kernel32.dll")]
         public static extern bool ReadProcessMemory(int hProcess, int lpBaseAddress, byte[] lpBuffer, int dwSize, ref int lpNumberOfBytesRead);
 
+        //first parameter player number, second parameter is current frame count, third parameter is player bonus time
+        public Action<int, int, double> PlayerFinished;
+        public Action LevelFinished;
+        public Action EpisodeFinished;
+
         public void HookMemory()
         {
             int bytesRead = 0;
             byte[] offsetPointer = new byte[8];
-            byte[] p1Buffer = new byte[8];
-            byte[] p2Buffer = new byte[8];
-            byte[] p3Buffer = new byte[8];
-            byte[] p4Buffer = new byte[8];
 
             if (!FindProcessNPP()) { return; }
 
@@ -84,17 +105,13 @@ namespace RaceModeTimer
             if (!FindnppModule()) { return; }
 
             ReadProcessMemory((int)NppProcessHandle, (int)(NppdllBaseAddress + DllOffset), offsetPointer, offsetPointer.Length, ref bytesRead);
-
             StatBlockOffset = BitConverter.ToInt32(offsetPointer, 0);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1EpisodeTimeOffset), p1Buffer, p1Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P2EpisodeTimeOffset), p2Buffer, p2Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P3EpisodeTimeOffset), p3Buffer, p3Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P4EpisodeTimeOffset), p4Buffer, p4Buffer.Length, ref bytesRead);
+            InitializeAllValues();
 
-            P1EpisodeTime = BitConverter.ToDouble(p1Buffer, 0);
-            P2EpisodeTime = BitConverter.ToDouble(p2Buffer, 0);
-            P3EpisodeTime = BitConverter.ToDouble(p3Buffer, 0);
-            P4EpisodeTime = BitConverter.ToDouble(p4Buffer, 0);
+            P1EpisodeTime.UpdateValue();
+            P2EpisodeTime.UpdateValue();
+            P3EpisodeTime.UpdateValue();
+            P4EpisodeTime.UpdateValue();
         }
 
         // finds the N++ process
@@ -148,71 +165,106 @@ namespace RaceModeTimer
             return true;
         }
 
+        void InitializeAllValues()
+        {
+            P1Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P1ActiveOffset } };
+            P2Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P2ActiveOffset } };
+            P3Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P3ActiveOffset } };
+            P4Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P4ActiveOffset } };
+
+            P1Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P1FinishedOffset } };
+            P2Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P2FinishedOffset } };
+            P3Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P3FinishedOffset } };
+            P4Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P4FinishedOffset } };
+
+            P1EpisodeTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P1EpisodeTimeOffset } };
+            P2EpisodeTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P2EpisodeTimeOffset } };
+            P3EpisodeTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P3EpisodeTimeOffset } };
+            P4EpisodeTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P4EpisodeTimeOffset } };
+
+            P1BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P1BonusOffset } };
+            P2BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P2BonusOffset } };
+            P3BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P3BonusOffset } };
+            P4BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P4BonusOffset } };
+        }
+
         public void UpdateThread()
         {
+            UpdateFinishedPlayers();
             UpdateEpisodeTime();
             UpdatePlayerActivity();
         }
 
+        void UpdateFinishedPlayers()
+        {
+            P1Finished.UpdateValue();
+            P2Finished.UpdateValue();
+            P3Finished.UpdateValue();
+            P4Finished.UpdateValue();
+
+            if (P1Finished.Value && !P1Finished.PreviousValue)
+            {
+                P1BonusTime.UpdateValue();
+                PlayerFinished(0, CurrentFrame, P1BonusTime.Value);
+            }
+            if (P2Finished.Value && !P2Finished.PreviousValue)
+            {
+                P2BonusTime.UpdateValue();
+                PlayerFinished(1, CurrentFrame, P2BonusTime.Value);
+            }
+            if (P3Finished.Value && !P3Finished.PreviousValue)
+            {
+                P3BonusTime.UpdateValue();
+                PlayerFinished(2, CurrentFrame, P3BonusTime.Value);
+            }
+            if (P4Finished.Value && !P4Finished.PreviousValue)
+            {
+                P4BonusTime.UpdateValue();
+                PlayerFinished(3, CurrentFrame, P4BonusTime.Value);
+            }
+
+            if ((!P1Finished.Value && P1Finished.PreviousValue) || (!P2Finished.Value && P2Finished.PreviousValue)
+                || (!P3Finished.Value && P3Finished.PreviousValue) || (!P4Finished.Value && P4Finished.PreviousValue))
+            {
+                LevelFinished();
+            }
+        }
+
         void UpdateEpisodeTime()
         {
-            int bytesRead = 0;
-            byte[] p1Buffer = new byte[8];
-            byte[] p2Buffer = new byte[8];
-            byte[] p3Buffer = new byte[8];
-            byte[] p4Buffer = new byte[8];
+            P1EpisodeTime.UpdateValue();
+            P2EpisodeTime.UpdateValue();
+            P3EpisodeTime.UpdateValue();
+            P4EpisodeTime.UpdateValue();
 
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1EpisodeTimeOffset), p1Buffer, p1Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P2EpisodeTimeOffset), p2Buffer, p2Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P3EpisodeTimeOffset), p3Buffer, p3Buffer.Length, ref bytesRead);
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P4EpisodeTimeOffset), p4Buffer, p4Buffer.Length, ref bytesRead);
+            StartNewEpisode = P1EpisodeTime.Value < P1EpisodeTime.PreviousValue
+                            || P2EpisodeTime.Value < P2EpisodeTime.PreviousValue
+                            || P3EpisodeTime.Value < P3EpisodeTime.PreviousValue
+                            || P4EpisodeTime.Value < P4EpisodeTime.PreviousValue;
 
-            P1EpisodeTimeNewFrame = BitConverter.ToDouble(p1Buffer, 0);
-            P2EpisodeTimeNewFrame = BitConverter.ToDouble(p2Buffer, 0);
-            P3EpisodeTimeNewFrame = BitConverter.ToDouble(p3Buffer, 0);
-            P4EpisodeTimeNewFrame = BitConverter.ToDouble(p4Buffer, 0);
-
-            StartNewEpisode = P1EpisodeTimeNewFrame < P1EpisodeTime
-                            || P2EpisodeTimeNewFrame < P2EpisodeTime
-                            || P3EpisodeTimeNewFrame < P3EpisodeTime
-                            || P4EpisodeTimeNewFrame < P4EpisodeTime;
-
-            EpisodeTimeValuesChanged = P1EpisodeTimeNewFrame != P1EpisodeTime
-                            || P2EpisodeTimeNewFrame != P2EpisodeTime
-                            || P3EpisodeTimeNewFrame != P3EpisodeTime
-                            || P4EpisodeTimeNewFrame != P4EpisodeTime;
+            EpisodeTimeValuesChanged = P1EpisodeTime.Value != P1EpisodeTime.PreviousValue
+                            || P2EpisodeTime.Value != P2EpisodeTime.PreviousValue
+                            || P3EpisodeTime.Value != P3EpisodeTime.PreviousValue
+                            || P4EpisodeTime.Value != P4EpisodeTime.PreviousValue;
 
             if (StartNewEpisode)
             {
-                P1Time += P1EpisodeTime;
-                P2Time += P2EpisodeTime;
-                P3Time += P3EpisodeTime;
-                P4Time += P4EpisodeTime;
+                P1Time += P1EpisodeTime.Value;
+                P2Time += P2EpisodeTime.Value;
+                P3Time += P3EpisodeTime.Value;
+                P4Time += P4EpisodeTime.Value;
             }
-
-            P1EpisodeTime = P1EpisodeTimeNewFrame;
-            P2EpisodeTime = P2EpisodeTimeNewFrame;
-            P3EpisodeTime = P3EpisodeTimeNewFrame;
-            P4EpisodeTime = P4EpisodeTimeNewFrame;
         }
 
         void UpdatePlayerActivity()
         {
-            int bytesRead = 0;
-            byte[] activeBuffer = new byte[16];
-            ReadProcessMemory((int)NppProcessHandle, (int)(StatBlockOffset + P1ActiveOffset), activeBuffer, activeBuffer.Length, ref bytesRead);
+            P1Active.UpdateValue();
+            P2Active.UpdateValue();
+            P3Active.UpdateValue();
+            P4Active.UpdateValue();
 
-            var p1 = BitConverter.ToBoolean(activeBuffer, 0);
-            var p2 = BitConverter.ToBoolean(activeBuffer, 4);
-            var p3 = BitConverter.ToBoolean(activeBuffer, 8);
-            var p4 = BitConverter.ToBoolean(activeBuffer, 12);
-
-            PlayerActivityChanged = p1 != P1Active || p2 != P2Active || p3 != P3Active || p4 != P4Active;
-
-            P1Active = p1;
-            P2Active = p2;
-            P3Active = p3;
-            P4Active = p4;
+            PlayerActivityChanged = P1Active.Value != P1Active.PreviousValue || P2Active.Value != P2Active.PreviousValue
+                || P3Active.Value != P3Active.PreviousValue || P4Active.Value != P4Active.PreviousValue;
         }
 
         public void ResetValues()

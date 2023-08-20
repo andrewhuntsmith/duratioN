@@ -9,9 +9,9 @@ namespace RaceModeTimer
         public string NamesPath = "Names.txt";
         public string ScoresPath = "Scores.txt";
 
-        public void WriteStatsToFile()
+        public void WriteStatsToFile(string matchData)
         {
-            File.WriteAllText(LogPath, "Hello World");
+            File.WriteAllText(LogPath, matchData);
         }
 
         public void UpdateNamesFile(List<string> names)
