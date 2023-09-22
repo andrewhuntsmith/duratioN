@@ -12,7 +12,9 @@ namespace RaceModeTimer
     /// </summary>
     public partial class MainWindow : Window
     {
-        MemorySource MS = new MemorySource();
+        public static List<string> PlayerNames;
+
+        public static MemorySource MS = new MemorySource();
         LogWriter Log = new LogWriter();
         List<MatchData> LocalMatches = new List<MatchData>();
 
@@ -32,15 +34,15 @@ namespace RaceModeTimer
 
         public MainWindow()
         {
+            PlayerNames = new List<string> { P1Name, P2Name, P3Name, P4Name };
+            
             InitializeComponent();
             MS.HookMemory();
             MS.PlayerFinished += UpdatePlayersFinished;
-            MS.LevelFinished += StartNewLevel;
+            MS.LevelFinished += FinishCurrentLevel;
+            MS.StartNewLevel += StartNewLevel;
             CurrentMatch = new MatchData();
-            CurrentEpisode = new EpisodeData();
-            CurrentLevel = new LevelData();
-            CurrentEpisode.Levels.Add(CurrentLevel);
-            CurrentMatch.Episodes.Add(CurrentEpisode);
+            StartNewLevel();
             UpdateTimeDisplay();
             Thread t = new Thread(UpdateThread);
             t.Start();
@@ -63,31 +65,9 @@ namespace RaceModeTimer
             PlayerTimes.Items.Clear();
             var names = new List<string>();
             var scores = new List<string>();
-            if (MS.P1Active.Value)
-            {
-                PlayerTimes.Items.Add(P1Name + ": " + P1DisplayTime);
-                names.Add(P1Name);
-                scores.Add(P1DisplayTime);
-            }
-            if (MS.P2Active.Value)
-            {
-                PlayerTimes.Items.Add(P2Name + ": " + P2DisplayTime);
-                names.Add(P2Name);
-                scores.Add(P2DisplayTime);
-            }
-            if (MS.P3Active.Value)
-            {
-                PlayerTimes.Items.Add(P3Name + ": " + P3DisplayTime);
-                names.Add(P3Name);
-                scores.Add(P3DisplayTime);
-            }
-            if (MS.P4Active.Value)
-            {
-                PlayerTimes.Items.Add(P4Name + ": " + P4DisplayTime);
-                names.Add(P4Name);
-                scores.Add(P4DisplayTime);
-            }
-            PlayerTimes.Items.Add(CurrentMatch.ToString());
+            var matchStrings = CurrentMatch.ToString().Split('\n');
+            foreach(var line in matchStrings)
+                PlayerTimes.Items.Add(line);
             Log.UpdateNamesFile(names);
             Log.UpdateScoresFile(scores);
             Log.WriteStatsToFile(CurrentMatch.TimeStarted + "\n" + string.Join("\n", CurrentMatch));
@@ -110,6 +90,7 @@ namespace RaceModeTimer
             P2Name = string.IsNullOrEmpty(P2Text.Text) ? "P2" : P2Text.Text;
             P3Name = string.IsNullOrEmpty(P3Text.Text) ? "P3" : P3Text.Text;
             P4Name = string.IsNullOrEmpty(P4Text.Text) ? "P4" : P4Text.Text;
+            PlayerNames = new List<string> { P1Name, P2Name, P3Name, P4Name };
             UpdateTimeDisplay();
         }
 
@@ -123,23 +104,31 @@ namespace RaceModeTimer
             Loop = false;
         }
 
+        void FinishCurrentLevel()
+        {
+            CurrentEpisode?.FinishCurrentLevel();
+            Dispatcher.BeginInvoke(new Action(UpdateTimeDisplay));
+        }
+
         void StartNewLevel()
         {
-            if (CurrentEpisode.Levels.Count == 5)
+            if (CurrentEpisode == null || CurrentEpisode.Levels.Count % 5 == 0)
             {
                 CurrentMatch.Episodes.Add(new EpisodeData());
                 CurrentEpisode = CurrentMatch.Episodes.Last();
             }
 
-            CurrentEpisode.Levels.Add(new LevelData());
+            CurrentEpisode.StartNewLevel();
             CurrentLevel = CurrentEpisode.Levels.Last();
+            Dispatcher.BeginInvoke(new Action(UpdateTimeDisplay));
         }
 
-        void UpdatePlayersFinished(int playerIndex, int frameCount, double bonus)
+        void UpdatePlayersFinished(int playerIndex, int frameCount, double bonus, int goldCollected)
         {
             CurrentLevel.DidFinish[playerIndex] = true;
             CurrentLevel.FinishTimes[playerIndex] = frameCount;
             CurrentLevel.TimeAdjustments[playerIndex] = bonus;
+            CurrentLevel.GoldCollected[playerIndex] = goldCollected;
         }
     }
 }

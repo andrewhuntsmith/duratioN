@@ -6,7 +6,7 @@ using System.Windows;
 
 namespace RaceModeTimer
 {
-    class MemorySource
+    public class MemorySource
     {
         // offsets from npp.dll to find player timers
         public const int DllOffset = 0x5E2628;
@@ -19,6 +19,11 @@ namespace RaceModeTimer
         public const int P2ActiveOffset = P1ActiveOffset + 0x4;
         public const int P3ActiveOffset = P2ActiveOffset + 0x4;
         public const int P4ActiveOffset = P3ActiveOffset + 0x4;
+
+        public const int P1PermDeadOffset = 0x7DC0;
+        public const int P2PermDeadOffset = P1PermDeadOffset + 0x4;
+        public const int P3PermDeadOffset = P2PermDeadOffset + 0x4;
+        public const int P4PermDeadOffset = P3PermDeadOffset + 0x4;
 
         public const int P1FinishedOffset = 0x7DE0;
         public const int P2FinishedOffset = P1FinishedOffset + 0x4;
@@ -51,6 +56,12 @@ namespace RaceModeTimer
         public BoolAddressValue P2Active;
         public BoolAddressValue P3Active;
         public BoolAddressValue P4Active;
+        public List<BoolAddressValue> PlayerActivity;
+
+        public BoolAddressValue P1PermDead;
+        public BoolAddressValue P2PermDead;
+        public BoolAddressValue P3PermDead;
+        public BoolAddressValue P4PermDead;
 
         public BoolAddressValue P1Finished;
         public BoolAddressValue P2Finished;
@@ -62,6 +73,11 @@ namespace RaceModeTimer
         public double P3Time = 0;
         public double P4Time = 0;
 
+        public int P1Gold = 0;
+        public int P2Gold = 0;
+        public int P3Gold = 0;
+        public int P4Gold = 0;
+
         public DoubleAddressValue P1EpisodeTime;
         public DoubleAddressValue P2EpisodeTime;
         public DoubleAddressValue P3EpisodeTime;
@@ -72,7 +88,7 @@ namespace RaceModeTimer
         public DoubleAddressValue P3BonusTime;
         public DoubleAddressValue P4BonusTime;
 
-        public int CurrentFrame;
+        public IntAddressValue CurrentFrame;
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -80,10 +96,12 @@ namespace RaceModeTimer
         [DllImport("kernel32.dll")]
         public static extern bool ReadProcessMemory(int hProcess, int lpBaseAddress, byte[] lpBuffer, int dwSize, ref int lpNumberOfBytesRead);
 
-        //first parameter player number, second parameter is current frame count, third parameter is player bonus time
-        public Action<int, int, double> PlayerFinished;
+        //first parameter player number, second parameter is current frame count, third parameter is player bonus time, fourth is gold collected
+        public Action<int, int, double, int> PlayerFinished;
         public Action LevelFinished;
+        public Action StartNewLevel;
         public Action EpisodeFinished;
+        public bool LevelInProgress;
 
         public void HookMemory()
         {
@@ -172,6 +190,13 @@ namespace RaceModeTimer
             P3Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P3ActiveOffset } };
             P4Active = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P4ActiveOffset } };
 
+            PlayerActivity = new List<BoolAddressValue>() { P1Active, P2Active, P3Active, P4Active };
+
+            P1PermDead = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P1PermDeadOffset } };
+            P2PermDead = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P2PermDeadOffset } };
+            P3PermDead = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P3PermDeadOffset } };
+            P4PermDead = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P4PermDeadOffset } };
+
             P1Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P1FinishedOffset } };
             P2Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P2FinishedOffset } };
             P3Finished = new BoolAddressValue() { Offsets = new List<int> { StatBlockOffset + P3FinishedOffset } };
@@ -186,13 +211,21 @@ namespace RaceModeTimer
             P2BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P2BonusOffset } };
             P3BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P3BonusOffset } };
             P4BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P4BonusOffset } };
+
+            CurrentFrame = new IntAddressValue() { Offsets = new List<int> { StatBlockOffset + EpisodeFrameCounterOffset } };
         }
 
         public void UpdateThread()
         {
+            CurrentFrame.UpdateValue();
+            UpdatePlayerActivity();
+            if (!LevelInProgress)
+                LevelInProgress = CurrentFrame.Value > CurrentFrame.PreviousValue;
+
+            UpdateDeadPlayers();
+            UpdateBonusTime();
             UpdateFinishedPlayers();
             UpdateEpisodeTime();
-            UpdatePlayerActivity();
         }
 
         void UpdateFinishedPlayers()
@@ -204,30 +237,87 @@ namespace RaceModeTimer
 
             if (P1Finished.Value && !P1Finished.PreviousValue)
             {
-                P1BonusTime.UpdateValue();
-                PlayerFinished(0, CurrentFrame, P1BonusTime.Value);
+                PlayerFinished(0, CurrentFrame.Value, P1BonusTime.Value, P1Gold);
+                P1Gold = 0;
             }
             if (P2Finished.Value && !P2Finished.PreviousValue)
             {
-                P2BonusTime.UpdateValue();
-                PlayerFinished(1, CurrentFrame, P2BonusTime.Value);
+                PlayerFinished(1, CurrentFrame.Value, P2BonusTime.Value, P2Gold);
+                P2Gold = 0;
             }
             if (P3Finished.Value && !P3Finished.PreviousValue)
             {
-                P3BonusTime.UpdateValue();
-                PlayerFinished(2, CurrentFrame, P3BonusTime.Value);
+                PlayerFinished(2, CurrentFrame.Value, P3BonusTime.Value, P3Gold);
+                P3Gold = 0;
             }
             if (P4Finished.Value && !P4Finished.PreviousValue)
             {
-                P4BonusTime.UpdateValue();
-                PlayerFinished(3, CurrentFrame, P4BonusTime.Value);
+                PlayerFinished(3, CurrentFrame.Value, P4BonusTime.Value, P4Gold);
+                P4Gold = 0;
+            }
+
+            if (CheckLevelEnd())
+            {
+                LevelFinished();
+                LevelInProgress = false;
             }
 
             if ((!P1Finished.Value && P1Finished.PreviousValue) || (!P2Finished.Value && P2Finished.PreviousValue)
                 || (!P3Finished.Value && P3Finished.PreviousValue) || (!P4Finished.Value && P4Finished.PreviousValue))
             {
-                LevelFinished();
+                StartNewLevel();
             }
+        }
+
+        bool CheckLevelEnd()
+        {
+            var p1End = !P1Active.Value || P1Finished.Value || P1PermDead.Value;
+            var p2End = !P2Active.Value || P2Finished.Value || P2PermDead.Value;
+            var p3End = !P3Active.Value || P3Finished.Value || P3PermDead.Value;
+            var p4End = !P4Active.Value || P4Finished.Value || P4PermDead.Value;
+            var allPlayersEnd = p1End && p2End && p3End && p4End;
+            return allPlayersEnd && (PlayerFinishedThisFrame() || PlayerDiedThisFrame());
+        }
+
+        bool PlayerFinishedThisFrame()
+        {
+            return (P1Finished.Value && !P1Finished.PreviousValue)
+                   || (P2Finished.Value && !P2Finished.PreviousValue)
+                   || (P3Finished.Value && !P3Finished.PreviousValue)
+                   || (P4Finished.Value && !P4Finished.PreviousValue);
+        }
+
+        bool PlayerDiedThisFrame()
+        {
+            return (P1PermDead.Value && !P1PermDead.PreviousValue)
+                   || (P2PermDead.Value && !P2PermDead.PreviousValue)
+                   || (P3PermDead.Value && !P3PermDead.PreviousValue)
+                   || (P4PermDead.Value && !P4PermDead.PreviousValue);
+        }
+
+        void UpdateDeadPlayers()
+        {
+            P1PermDead.UpdateValue();
+            P2PermDead.UpdateValue();
+            P3PermDead.UpdateValue();
+            P4PermDead.UpdateValue();
+        }
+
+        void UpdateBonusTime()
+        {
+            P1BonusTime.UpdateValue();
+            P2BonusTime.UpdateValue();
+            P3BonusTime.UpdateValue();
+            P4BonusTime.UpdateValue();
+
+            if (P1BonusTime.Value > P1BonusTime.PreviousValue && P1BonusTime.PreviousValue != 0)
+                P1Gold += (int)Math.Round((P1BonusTime.Value - P1BonusTime.PreviousValue) / 2);
+            if (P2BonusTime.Value > P2BonusTime.PreviousValue && P2BonusTime.PreviousValue != 0)
+                P2Gold += (int)Math.Round((P2BonusTime.Value - P2BonusTime.PreviousValue) / 2);
+            if (P3BonusTime.Value > P3BonusTime.PreviousValue && P3BonusTime.PreviousValue != 0)
+                P3Gold += (int)Math.Round((P3BonusTime.Value - P3BonusTime.PreviousValue) / 2);
+            if (P4BonusTime.Value > P4BonusTime.PreviousValue && P4BonusTime.PreviousValue != 0)
+                P4Gold += (int)Math.Round((P4BonusTime.Value - P4BonusTime.PreviousValue) / 2);
         }
 
         void UpdateEpisodeTime()

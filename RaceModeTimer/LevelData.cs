@@ -22,7 +22,7 @@ namespace RaceModeTimer
             var playerStrings = new List<string>();
             for (var i = 0; i < 4; i++)
             {
-                var player = "p" + (i+1) + ": ";
+                var player = MainWindow.PlayerNames[i] + ": ";
                 player += DidFinish[i] ? "Finished, " : "No finish, ";
                 player += TimeAdjustments[i];
                 playerStrings.Add(player);
