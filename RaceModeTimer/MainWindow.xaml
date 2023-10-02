@@ -4,7 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="duratioN" Height="500" Width="800"
+        Title="duratioN" Height="500" Width="600"
+        WindowStartupLocation="Manual"
+        Top="200" Left="1300"
         Closing="MainWindow_Closing">
     <Grid>
         <Grid.RowDefinitions>
@@ -13,17 +15,18 @@
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="350*" />
+            <ColumnDefinition Width="250*"/>
         </Grid.ColumnDefinitions>
 
         <Label>Player Times</Label>
-        <ListBox Grid.Row="1" x:Name="PlayerTimes" />
+        <ListBox Grid.Row="1" x:Name="PlayerTimes"/>
 
-        <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,0">
-            <Button x:Name="BtnAdd" Margin="0,5,0,0" Click="HookToGame" IsEnabled="False">Hook To Game</Button>
-            <Button x:Name="BtnResetTimes" Margin="0,5,0,0" Click="ResetTimes">Reset Times</Button>
-            
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,5,0">
+            <Button x:Name="BtnAdd" Margin="0,5,0,0" Click="HookToGameButtonPressed" IsEnabled="False">Hook To Game</Button>
+            <Button x:Name="BtnResetTimes" Margin="0,5,0,0" Click="ResetMatchButtonPressed">Reset Match</Button>
+            <Button x:Name="BtnResetEpisode" Margin="0,5,0,0" Click="ResetEpisodeButtonPressed">Reset Episode</Button>
+
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -43,9 +46,9 @@
                 </Grid.ColumnDefinitions>
 
                 <Label HorizontalAlignment="Center" Grid.ColumnSpan="4">Player Names</Label>
-                <Label Grid.Row="1" x:Name="P1Label">P1: </Label>
+                <Label Grid.Row="1" x:Name="P1Label">P1:</Label>
                 <TextBox Grid.Row="1" Grid.Column="1" x:Name="P1Text" Grid.ColumnSpan="3"></TextBox>
-                <Label Grid.Row="1" Grid.Column="4" x:Name="P2Label">P2: </Label>
+                <Label Grid.Row="1" Grid.Column="4" x:Name="P2Label">P2:</Label>
                 <TextBox Grid.Row="1" Grid.Column="5" x:Name="P2Text" Grid.ColumnSpan="3"></TextBox>
                 <Label Grid.Row="2" x:Name="P3Label">P3:</Label>
                 <TextBox Grid.Row="2" Grid.Column="1" x:Name="P3Text" Grid.ColumnSpan="3"></TextBox>
@@ -53,7 +56,8 @@
                 <TextBox Grid.Row="2" Grid.Column="5" x:Name="P4Text" Grid.ColumnSpan="3"></TextBox>
             </Grid>
 
-            <Button x:Name="BtnUpdateNames" Margin="0,5,0,0" Click="UpdateNames">Update Names</Button>
+            <Button x:Name="BtnUpdateNames" Margin="0,5,0,0" Click="UpdateNamesButtonPressed">Update Names</Button>
+            <Button x:Name="BtnEndMatch" Margin="0,5,0,0" Click="EndMatchButtonPressed">End Match</Button>
         </StackPanel>
     </Grid>
 </Window>

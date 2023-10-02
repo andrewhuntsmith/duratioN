@@ -36,6 +36,8 @@ namespace RaceModeTimer
         public const int P4BonusOffset = P3BonusOffset + 0x8;
 
         public const int EpisodeFrameCounterOffset = 0x7CC8;
+        public const int MaxOutLimitOffset1 = 0x810;
+        public const int MaxOutLimitOffset2 = 0x6936CB8;
 
         public static int StatBlockOffset;
 
@@ -48,7 +50,6 @@ namespace RaceModeTimer
 
         const int PROCESS_VM_READ = 0x0010;
 
-        public bool StartNewEpisode;
         public bool EpisodeTimeValuesChanged;
         public bool PlayerActivityChanged;
 
@@ -68,11 +69,6 @@ namespace RaceModeTimer
         public BoolAddressValue P3Finished;
         public BoolAddressValue P4Finished;
 
-        public double P1Time = 0;
-        public double P2Time = 0;
-        public double P3Time = 0;
-        public double P4Time = 0;
-
         public int P1Gold = 0;
         public int P2Gold = 0;
         public int P3Gold = 0;
@@ -89,6 +85,7 @@ namespace RaceModeTimer
         public DoubleAddressValue P4BonusTime;
 
         public IntAddressValue CurrentFrame;
+        public IntAddressValue MaxOutLimit;
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -100,8 +97,10 @@ namespace RaceModeTimer
         public Action<int, int, double, int> PlayerFinished;
         public Action LevelFinished;
         public Action StartNewLevel;
+        public Action EpisodeStarted;
         public Action EpisodeFinished;
         public bool LevelInProgress;
+        public bool MaxedOutEpisode;
 
         public void HookMemory()
         {
@@ -213,14 +212,25 @@ namespace RaceModeTimer
             P4BonusTime = new DoubleAddressValue() { Offsets = new List<int> { StatBlockOffset + P4BonusOffset } };
 
             CurrentFrame = new IntAddressValue() { Offsets = new List<int> { StatBlockOffset + EpisodeFrameCounterOffset } };
+            CurrentFrame.UpdateValue();
+
+            MaxOutLimit = new IntAddressValue() { Offsets = new List<int> { StatBlockOffset + MaxOutLimitOffset1, MaxOutLimitOffset2 } };
         }
 
         public void UpdateThread()
         {
             CurrentFrame.UpdateValue();
             UpdatePlayerActivity();
-            if (!LevelInProgress)
+
+            if (CurrentFrame.PreviousValue == 0 && CurrentFrame.Value > 0)
+                StartNewEpisode();
+
+            if (!LevelInProgress && !MaxedOutEpisode)
+            {
                 LevelInProgress = CurrentFrame.Value > CurrentFrame.PreviousValue;
+                if (LevelInProgress && !CheckLevelEnd())
+                    StartNewLevel();
+            }
 
             UpdateDeadPlayers();
             UpdateBonusTime();
@@ -258,14 +268,9 @@ namespace RaceModeTimer
 
             if (CheckLevelEnd())
             {
+                MaxedOutEpisode = CheckMaxOut();
                 LevelFinished();
                 LevelInProgress = false;
-            }
-
-            if ((!P1Finished.Value && P1Finished.PreviousValue) || (!P2Finished.Value && P2Finished.PreviousValue)
-                || (!P3Finished.Value && P3Finished.PreviousValue) || (!P4Finished.Value && P4Finished.PreviousValue))
-            {
-                StartNewLevel();
             }
         }
 
@@ -293,6 +298,16 @@ namespace RaceModeTimer
                    || (P2PermDead.Value && !P2PermDead.PreviousValue)
                    || (P3PermDead.Value && !P3PermDead.PreviousValue)
                    || (P4PermDead.Value && !P4PermDead.PreviousValue);
+        }
+
+        bool CheckMaxOut()
+        {
+            MaxOutLimit.UpdateValue();
+            var p1Max = P1EpisodeTime.Value + P1BonusTime.Value >= MaxOutLimit.Value;
+            var p2Max = P2EpisodeTime.Value + P2BonusTime.Value >= MaxOutLimit.Value;
+            var p3Max = P3EpisodeTime.Value + P3BonusTime.Value >= MaxOutLimit.Value;
+            var p4Max = P4EpisodeTime.Value + P4BonusTime.Value >= MaxOutLimit.Value;
+            return p1Max || p2Max || p3Max || p4Max;
         }
 
         void UpdateDeadPlayers()
@@ -327,23 +342,10 @@ namespace RaceModeTimer
             P3EpisodeTime.UpdateValue();
             P4EpisodeTime.UpdateValue();
 
-            StartNewEpisode = P1EpisodeTime.Value < P1EpisodeTime.PreviousValue
-                            || P2EpisodeTime.Value < P2EpisodeTime.PreviousValue
-                            || P3EpisodeTime.Value < P3EpisodeTime.PreviousValue
-                            || P4EpisodeTime.Value < P4EpisodeTime.PreviousValue;
-
             EpisodeTimeValuesChanged = P1EpisodeTime.Value != P1EpisodeTime.PreviousValue
                             || P2EpisodeTime.Value != P2EpisodeTime.PreviousValue
                             || P3EpisodeTime.Value != P3EpisodeTime.PreviousValue
                             || P4EpisodeTime.Value != P4EpisodeTime.PreviousValue;
-
-            if (StartNewEpisode)
-            {
-                P1Time += P1EpisodeTime.Value;
-                P2Time += P2EpisodeTime.Value;
-                P3Time += P3EpisodeTime.Value;
-                P4Time += P4EpisodeTime.Value;
-            }
         }
 
         void UpdatePlayerActivity()
@@ -357,12 +359,16 @@ namespace RaceModeTimer
                 || P3Active.Value != P3Active.PreviousValue || P4Active.Value != P4Active.PreviousValue;
         }
 
+        void StartNewEpisode()
+        {
+            MaxedOutEpisode = false;
+            EpisodeStarted();
+        }
+
         public void ResetValues()
         {
-            P1Time = 0;
-            P2Time = 0;
-            P3Time = 0;
-            P4Time = 0;
+            MaxedOutEpisode = false;
+            LevelInProgress = false;
         }
     }
 }

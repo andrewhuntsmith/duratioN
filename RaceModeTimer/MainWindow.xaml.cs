@@ -16,10 +16,9 @@ namespace RaceModeTimer
 
         public static MemorySource MS = new MemorySource();
         LogWriter Log = new LogWriter();
-        List<MatchData> LocalMatches = new List<MatchData>();
 
         MatchData CurrentMatch;
-        EpisodeData CurrentEpisode;
+        EpisodeData CurrentEpisode => CurrentMatch.Episodes.Any() ? CurrentMatch.Episodes.Last() : null;
         LevelData CurrentLevel;
 
         public string P1Name = "P1";
@@ -27,10 +26,10 @@ namespace RaceModeTimer
         public string P3Name = "P3";
         public string P4Name = "P4";
 
-        string P1DisplayTime => (MS.P1Time + MS.P1EpisodeTime.Value).ToString("0.000");
-        string P2DisplayTime => (MS.P2Time + MS.P2EpisodeTime.Value).ToString("0.000");
-        string P3DisplayTime => (MS.P3Time + MS.P3EpisodeTime.Value).ToString("0.000");
-        string P4DisplayTime => (MS.P4Time + MS.P4EpisodeTime.Value).ToString("0.000");
+        string P1DisplayTime => CurrentMatch.GetScores()[0].ToString("0.000");
+        string P2DisplayTime => CurrentMatch.GetScores()[1].ToString("0.000");
+        string P3DisplayTime => CurrentMatch.GetScores()[2].ToString("0.000");
+        string P4DisplayTime => CurrentMatch.GetScores()[3].ToString("0.000");
 
         public MainWindow()
         {
@@ -41,8 +40,8 @@ namespace RaceModeTimer
             MS.PlayerFinished += UpdatePlayersFinished;
             MS.LevelFinished += FinishCurrentLevel;
             MS.StartNewLevel += StartNewLevel;
+            MS.EpisodeStarted += StartNewEpisode;
             CurrentMatch = new MatchData();
-            StartNewLevel();
             UpdateTimeDisplay();
             Thread t = new Thread(UpdateThread);
             t.Start();
@@ -65,26 +64,60 @@ namespace RaceModeTimer
             PlayerTimes.Items.Clear();
             var names = new List<string>();
             var scores = new List<string>();
+            if (MS.P1Active.Value)
+            {
+                names.Add(P1Name);
+                scores.Add(P1DisplayTime);
+            }
+            if (MS.P2Active.Value)
+            {
+                names.Add(P2Name);
+                scores.Add(P2DisplayTime);
+            }
+            if (MS.P3Active.Value)
+            {
+                names.Add(P3Name);
+                scores.Add(P3DisplayTime);
+            }
+            if (MS.P4Active.Value)
+            {
+                names.Add(P4Name);
+                scores.Add(P4DisplayTime);
+            }
             var matchStrings = CurrentMatch.ToString().Split('\n');
             foreach(var line in matchStrings)
                 PlayerTimes.Items.Add(line);
             Log.UpdateNamesFile(names);
             Log.UpdateScoresFile(scores);
-            Log.WriteStatsToFile(CurrentMatch.TimeStarted + "\n" + string.Join("\n", CurrentMatch));
+            Log.WriteCurrentMatchToFile(CurrentMatch.TimeStarted + "\n" + string.Join("\n", CurrentMatch));
         }
 
-        void ResetTimes(object sender, RoutedEventArgs e)
+        void ResetMatchButtonPressed(object sender, RoutedEventArgs e)
+        {
+            ResetMatch();
+        }
+
+        void ResetEpisodeButtonPressed(object sender, RoutedEventArgs e)
         {
             MS.ResetValues();
+            CurrentMatch.Episodes.Remove(CurrentMatch.Episodes.Last());
             UpdateTimeDisplay();
-            CurrentMatch = new MatchData();
-            CurrentEpisode = new EpisodeData();
-            CurrentLevel = new LevelData();
-            CurrentEpisode.Levels.Add(CurrentLevel);
-            CurrentMatch.Episodes.Add(CurrentEpisode);
         }
 
-        void UpdateNames(object sender, RoutedEventArgs e)
+        void EndMatchButtonPressed(object sender, RoutedEventArgs e)
+        {
+            Log.AppendLocalStatsFile("\n\n" + CurrentMatch.TimeStarted + "\n" + string.Join("\n", CurrentMatch));
+            ResetMatch();
+        }
+
+        void ResetMatch()
+        {
+            MS.ResetValues();
+            CurrentMatch = new MatchData();
+            UpdateTimeDisplay();
+        }
+
+        void UpdateNamesButtonPressed(object sender, RoutedEventArgs e)
         {
             P1Name = string.IsNullOrEmpty(P1Text.Text) ? "P1" : P1Text.Text;
             P2Name = string.IsNullOrEmpty(P2Text.Text) ? "P2" : P2Text.Text;
@@ -94,7 +127,7 @@ namespace RaceModeTimer
             UpdateTimeDisplay();
         }
 
-        void HookToGame(object sender, RoutedEventArgs e)
+        void HookToGameButtonPressed(object sender, RoutedEventArgs e)
         {
 
         }
@@ -106,18 +139,19 @@ namespace RaceModeTimer
 
         void FinishCurrentLevel()
         {
+            if (!CurrentEpisode.Levels.Any())
+                StartNewLevel();
             CurrentEpisode?.FinishCurrentLevel();
             Dispatcher.BeginInvoke(new Action(UpdateTimeDisplay));
         }
 
+        void StartNewEpisode()
+        {
+            CurrentMatch.Episodes.Add(new EpisodeData());
+        }
+
         void StartNewLevel()
         {
-            if (CurrentEpisode == null || CurrentEpisode.Levels.Count % 5 == 0)
-            {
-                CurrentMatch.Episodes.Add(new EpisodeData());
-                CurrentEpisode = CurrentMatch.Episodes.Last();
-            }
-
             CurrentEpisode.StartNewLevel();
             CurrentLevel = CurrentEpisode.Levels.Last();
             Dispatcher.BeginInvoke(new Action(UpdateTimeDisplay));

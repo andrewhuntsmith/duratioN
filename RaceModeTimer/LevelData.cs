@@ -8,6 +8,7 @@ namespace RaceModeTimer
         public bool[] DidFinish;
         public int[] GoldCollected;
         public double[] TimeAdjustments;
+        public bool LevelWasFinished => DidFinish[0] || DidFinish[1] || DidFinish[2] || DidFinish[3];
 
         public LevelData()
         {
