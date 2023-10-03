@@ -64,26 +64,16 @@ namespace RaceModeTimer
             PlayerTimes.Items.Clear();
             var names = new List<string>();
             var scores = new List<string>();
-            if (MS.P1Active.Value)
-            {
-                names.Add(P1Name);
-                scores.Add(P1DisplayTime);
-            }
-            if (MS.P2Active.Value)
-            {
-                names.Add(P2Name);
-                scores.Add(P2DisplayTime);
-            }
-            if (MS.P3Active.Value)
-            {
-                names.Add(P3Name);
-                scores.Add(P3DisplayTime);
-            }
-            if (MS.P4Active.Value)
-            {
-                names.Add(P4Name);
-                scores.Add(P4DisplayTime);
-            }
+
+            names.Add(P1Name);
+            scores.Add(P1DisplayTime);
+            names.Add(P2Name);
+            scores.Add(P2DisplayTime);
+            names.Add(P3Name);
+            scores.Add(P3DisplayTime);
+            names.Add(P4Name);
+            scores.Add(P4DisplayTime);
+            
             var matchStrings = CurrentMatch.ToString().Split('\n');
             foreach(var line in matchStrings)
                 PlayerTimes.Items.Add(line);
