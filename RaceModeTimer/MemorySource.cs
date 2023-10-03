@@ -227,9 +227,12 @@ namespace RaceModeTimer
 
             if (!LevelInProgress && !MaxedOutEpisode)
             {
-                LevelInProgress = CurrentFrame.Value > CurrentFrame.PreviousValue;
-                if (LevelInProgress && !CheckLevelEnd())
+                var timeProgressing = CurrentFrame.Value > CurrentFrame.PreviousValue;
+                if (timeProgressing && !CheckLevelEnd())
+                {
                     StartNewLevel();
+                    LevelInProgress = true;
+                }
             }
 
             UpdateDeadPlayers();
